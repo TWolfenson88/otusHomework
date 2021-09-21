@@ -13,8 +13,7 @@ func checkErrors(inp string) bool {
 	runes := []rune(inp)
 
 	// Check condition if input string is a number
-	_, errChk := strconv.Atoi(inp)
-	if errChk == nil {
+	if _, errChk := strconv.Atoi(inp); errChk == nil {
 		return true
 	}
 
