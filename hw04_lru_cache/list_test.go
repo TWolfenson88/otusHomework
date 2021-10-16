@@ -48,4 +48,13 @@ func TestList(t *testing.T) {
 		}
 		require.Equal(t, []int{70, 80, 60, 40, 10, 30, 50}, elems)
 	})
+
+	t.Run("errors", func(t *testing.T) {
+		l := NewList()
+		errRemove := l.Remove(nil)
+		require.Error(t, errRemove, "empty element")
+
+		_, errNilElem := l.PushFront(nil)
+		require.Error(t, errNilElem, "nil input not allowed")
+	})
 }
