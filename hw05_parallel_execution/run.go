@@ -29,8 +29,7 @@ func InitPool(poolsize int, tasksize int) *Pool {
 }
 
 func (p *Pool) work() {
-    defer p.wg.Done()
-
+	defer p.wg.Done()
 	for task := range p.taskChan {
 		err := task()
 
@@ -44,13 +43,10 @@ func (p *Pool) work() {
 }
 
 func (p *Pool) RunWorkers() {
-	 p.wg.Add(p.poolSize)
+	p.wg.Add(p.poolSize)
 
 	for i := 0; i < p.poolSize; i++ {
-		
 		go p.work()
-
-		
 	}
 
 	p.wg.Wait()
@@ -79,8 +75,10 @@ func Run(tasks []Task, n, m int) error {
 	}
 
 	workPool := InitPool(n, 1)
+
 	go workPool.RunWorkers()
 
+	var err error
 	errCount := 0
 
 	for i := 0; i < len(tasks); {
@@ -90,7 +88,7 @@ func Run(tasks []Task, n, m int) error {
 		case res := <-workPool.resChan:
 			res = workPool.CheckResult(res, &errCount, &m)
 			if res != nil {
-				return res
+				err = res
 			}
 		}
 	}
@@ -99,11 +97,17 @@ func Run(tasks []Task, n, m int) error {
 	for res := range workPool.resChan {
 		res = workPool.CheckResult(res, &errCount, &m)
 		if res != nil {
-			return res
+			err = res
 		}
 	}
 
 	close(workPool.done)
+
+	workPool.wg.Wait()
+
+	if err != nil {
+		return err
+	}
 	return nil
 
 }
