@@ -7,8 +7,10 @@ import (
 	"sync/atomic"
 )
 
-var ErrErrorsLimitExceeded = errors.New("errors limit exceeded")
-var ErrWrongCounter = fmt.Errorf("wrong errors size")
+var (
+	ErrErrorsLimitExceeded = errors.New("errors limit exceeded")
+	ErrWrongCounter        = fmt.Errorf("wrong errors size")
+)
 
 type Task func() error
 
@@ -49,7 +51,7 @@ func Run(tasks []Task, n int, m int) error {
 		return ErrWrongCounter
 	}
 
-	var errCounter int32 = 0
+	var errCounter int32
 	var taskPool Pool
 	pool := taskPool.InitPool(&errCounter, len(tasks), int32(m))
 

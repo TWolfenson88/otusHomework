@@ -68,7 +68,6 @@ func TestRun(t *testing.T) {
 		require.LessOrEqual(t, int64(elapsedTime), int64(sumTime/2), "tasks were run sequentially?")
 	})
 
-
 	t.Run("wrong error counter", func(t *testing.T) {
 		tasks := make([]Task, 0)
 
