@@ -2,112 +2,73 @@ package hw05parallelexecution
 
 import (
 	"errors"
+	"fmt"
 	"sync"
+	"sync/atomic"
 )
 
 var ErrErrorsLimitExceeded = errors.New("errors limit exceeded")
-var ErrWrongCounter = errors.New("ErrCounter less or equal zero")
+var ErrWrongCounter = fmt.Errorf("wrong errors size")
 
 type Task func() error
 
 type Pool struct {
-	poolSize int
-	taskChan chan Task
-	resChan  chan error
-	done     chan struct{}
-
-	wg sync.WaitGroup
+	errorCount *int32
+	taskCh     chan Task
+	wg         sync.WaitGroup
+	maxError   int32
 }
 
-func InitPool(poolsize int, tasksize int) *Pool {
+func (p *Pool) InitPool(errCount *int32, chSize int, maxErr int32) *Pool {
 	return &Pool{
-		poolSize: poolsize,
-		taskChan: make(chan Task, tasksize),
-		resChan:  make(chan error),
-		done:     make(chan struct{}),
+		errorCount: errCount,
+		taskCh:     make(chan Task, chSize),
+		wg:         sync.WaitGroup{},
+		maxError:   maxErr,
 	}
 }
 
 func (p *Pool) work() {
 	defer p.wg.Done()
-	for task := range p.taskChan {
-		err := task()
 
-		select {
-		case <-p.done:
+	for task := range p.taskCh {
+		localCount := atomic.LoadInt32(p.errorCount)
+		if localCount >= p.maxError {
 			return
-		case p.resChan <- err:
-
+		}
+		err := task()
+		if err != nil {
+			atomic.AddInt32(p.errorCount, 1)
 		}
 	}
 }
 
-func (p *Pool) RunWorkers() {
-	p.wg.Add(p.poolSize)
-
-	for i := 0; i < p.poolSize; i++ {
-		go p.work()
-	}
-
-	p.wg.Wait()
-	close(p.resChan)
-
-}
-
-func (p *Pool) CheckResult(result error, counter, size *int) error {
-	if result != nil {
-		*counter++
-	}
-	if *counter >= *size {
-		close(p.done)
-		return ErrErrorsLimitExceeded
-	}
-	return nil
-}
-
-// Run starts tasks in n goroutines and stops its work when receiving m errors from tasks.
-func Run(tasks []Task, n, m int) error {
+// Run starts tasks in N goroutines and stops its work when receiving M errors from tasks.
+func Run(tasks []Task, n int, m int) error {
 	if m <= 0 {
 		return ErrWrongCounter
 	}
-	if len(tasks) < n {
-		n = len(tasks)
+
+	var errCounter int32 = 0
+	var taskPool Pool
+	pool := taskPool.InitPool(&errCounter, len(tasks), int32(m))
+
+	for _, task := range tasks {
+		pool.taskCh <- task
+	}
+	close(pool.taskCh)
+
+	for i := 0; i < n; i++ {
+		pool.wg.Add(1)
+		go pool.work()
 	}
 
-	workPool := InitPool(n, 1)
+	pool.wg.Wait()
 
-	go workPool.RunWorkers()
-
-	var err error
-	errCount := 0
-
-	for i := 0; i < len(tasks); {
-		select {
-		case workPool.taskChan <- tasks[i]:
-			i++
-		case res := <-workPool.resChan:
-			res = workPool.CheckResult(res, &errCount, &m)
-			if res != nil {
-				err = res
-			}
-		}
+	localErrorCount := int(*pool.errorCount)
+	if localErrorCount >= m {
+		return ErrErrorsLimitExceeded
 	}
 
-	close(workPool.taskChan)
-	for res := range workPool.resChan {
-		res = workPool.CheckResult(res, &errCount, &m)
-		if res != nil {
-			err = res
-		}
-	}
-
-	close(workPool.done)
-
-	workPool.wg.Wait()
-
-	if err != nil {
-		return err
-	}
 	return nil
-
 }
