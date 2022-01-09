@@ -6,7 +6,6 @@ import (
 	"os/exec"
 )
 
-
 const (
 	exitCodeOk             = 0
 	exitCodeUnknown        = 400
