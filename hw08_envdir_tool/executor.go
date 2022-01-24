@@ -17,8 +17,7 @@ const (
 func RunCmd(cmd []string, env Environment) (returnCode int) {
 	exCmd := exec.Command(cmd[0], cmd[1:]...) //nolint:gosec
 
-	code := fillEnv(env)
-	if code != 0 {
+	if code := fillEnv(env); code != 0 {
 		return code
 	}
 
