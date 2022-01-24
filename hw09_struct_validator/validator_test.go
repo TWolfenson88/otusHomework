@@ -4,9 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-type UserRole string
+type (
+	UserRole      string
+	NumberWrapper int
+)
 
 // Test the function on different structures and other types.
 type (
@@ -21,7 +26,9 @@ type (
 	}
 
 	App struct {
-		Version string `validate:"len:5"`
+		Version string        `validate:"len:5"`
+		Numbers []int         `validate:"min:10|max:50"`
+		Wrap    NumberWrapper `validate:"max:100|min:25"`
 	}
 
 	Token struct {
@@ -39,22 +46,84 @@ type (
 func TestValidate(t *testing.T) {
 	tests := []struct {
 		in          interface{}
-		expectedErr error
+		expectedErr ValidationErrors
 	}{
 		{
-			// Place your code here.
+			in: User{
+				ID:     "1",
+				Name:   "Xipe-Totec",
+				Age:    5,
+				Email:  "hello@world",
+				Role:   "superuser",
+				Phones: []string{"111222333"},
+				meta:   json.RawMessage{},
+			},
+			expectedErr: ValidationErrors{
+				ValidationError{
+					Field: "ID",
+					Err:   ErrLen,
+				},
+				ValidationError{
+					Field: "Age",
+					Err:   ErrMin,
+				},
+				ValidationError{
+					Field: "Email",
+					Err:   ErrRegexp,
+				},
+				ValidationError{
+					Field: "Role",
+					Err:   ErrIn,
+				},
+				ValidationError{
+					Field: "Phones",
+					Err:   ErrLen,
+				},
+			},
 		},
-		// ...
-		// Place your code here.
+		{
+			in: App{
+				Version: "ololo",
+				Numbers: []int{10, 15, 218},
+				Wrap:    12,
+			},
+			expectedErr: ValidationErrors{
+				ValidationError{
+					Field: "Numbers",
+					Err:   ErrMax,
+				},
+				ValidationError{
+					Field: "Wrap",
+					Err:   ErrMin,
+				},
+			},
+		},
+		{
+			in: Token{
+				Header:    []byte("text/json"),
+				Payload:   nil,
+				Signature: nil,
+			},
+			expectedErr: nil,
+		},
+		{
+			in: Response{
+				Code: 0,
+				Body: "",
+			},
+			expectedErr: ValidationErrors{
+				ValidationError{
+					Field: "Code",
+					Err:   ErrIn,
+				},
+			},
+		},
 	}
 
 	for i, tt := range tests {
 		t.Run(fmt.Sprintf("case %d", i), func(t *testing.T) {
-			tt := tt
-			t.Parallel()
-
-			// Place your code here.
-			_ = tt
+			err := Validate(tt.in)
+			assert.Equal(t, &tt.expectedErr, err)
 		})
 	}
 }
