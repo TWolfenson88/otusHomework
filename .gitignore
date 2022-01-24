@@ -26,3 +26,5 @@ ehthumbs.db
 Thumbs.db
 .vscode/
 *.bak
+
+hw08_envdir_tool/testdata/
